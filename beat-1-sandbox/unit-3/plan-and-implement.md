@@ -1,79 +1,132 @@
 # Unit 3 — Plan and Build
 
-Path: `beat-1-sandbox/unit-3/plan-and-implement.md`
-
-Record of your plan, the branch you built it on, and the evaluation runs that produced
-`eval-run.txt`. This file is graded at the path above; a copy kept anywhere else in the
-repository is not read.
-
-Complete every labelled field below. Each is graded on its own; content placed under the wrong
-label is not graded.
-
----
-
 ## Posted upstream
 
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile - no @, no
-profile URL. Your comment upstream is identified by this name, and it is
-the only thing that ties it to you. Several students may plan the same
-house issue, so this is what keeps their comments off your score and
-yours off theirs.]
+Vishnutej
 
 **Plan comment**
 
-[Link to the comment where you posted your plan on the issue. Use the comment's own
-permalink. **Then paste the text of that comment underneath the link** — the pasted text is
-what this field is graded on, so copy across what you actually posted.]
+Comment permalink: `https://github.com/codepath/pathreview-ai301-fa26-s1/issues/53#issuecomment-6030580195`
 
----
+Comment text:
+
+> I reproduced issue #53 on the fork's current `main` with the following
+> outputs:
+>
+> ```text
+> 'Call me at (555) 123-4567 or [REDACTED]'
+> []
+> [{'type': 'phone_us', 'value': '555-123-4567', 'start': 34, 'end': 46}]
+> '(555)123-4567' -> '([REDACTED]'
+> ```
+>
+> The parenthesized number passes through `scrub()` and `detect()` returns
+> no phone match, while the dashed control is redacted and detected. The
+> no-space form leaves the opening `(` behind, so this is not only a
+> spacing issue.
+>
+> My diagnosis is that the current pattern has no whitespace separator
+> after `)` or between later groups, and its leading `\b` cannot start a
+> complete match at `(`. I plan to add a complete parenthesized-area-code
+> branch with explicit optional spaces/separators and a safe opening
+> boundary in `safety/pii_scrubber.py`, then remove the seeded issue #53
+> `xfail` markers in the focused tests. This is the proposed fix; I will
+> confirm the exact grouping against the focused tests.
+>
+> The change stays limited to that pattern and its tests; other PII
+> patterns and the scrubber API are out of scope.
+>
+> I’ll rerun the Unit 2 reproduction, verify that both `scrub()` and
+> `detect()` cover the complete parenthesized number, run the focused
+> issue tests, and then run `make test-unit`. I’ll report any change from
+> this plan in the `Deviations` section before submitting the fix.
 
 ## Your branch
 
 **Branch**
 
-[The name of the branch you built the change on, exactly as it appears in your fork. The
-naming shape is a type prefix, then the issue number, then a short description. **The issue
-number in the branch name must be the number of the issue you claimed** — a name carrying
-any other number does not satisfy this field.]
+`fix/53-parenthesized-phone-pii`
 
 **Evidence**
 
-[Your Unit 2 reproduction steps re-run against the built change: the before, then the
-after. Paste both, including the commands you ran and their output.]
+Before the fix, the Unit 2 reproduction returned:
+
+```text
+'Call me at (555) 123-4567 or [REDACTED]'
+[]
+[{'type': 'phone_us', 'value': '555-123-4567', 'start': 11, 'end': 23}]
+```
+
+Additional before results:
+
+```text
+'(555) 123-4567' -> '(555) 123-4567'
+'(555)123-4567' -> '([REDACTED]'
+'(555)-123-4567' -> '([REDACTED]'
+```
+
+After the fix, the same reproduction returned:
+
+```text
+'Call me at [REDACTED] or [REDACTED]'
+[{'type': 'phone_us', 'value': '(555) 123-4567', 'start': 11, 'end': 25}]
+[{'type': 'phone_us', 'value': '555-123-4567', 'start': 11, 'end': 23}]
+```
+
+Additional after results:
+
+```text
+'(555) 123-4567' -> '[REDACTED]'
+'(555)123-4567' -> '[REDACTED]'
+'(555)-123-4567' -> '[REDACTED]'
+```
+
+The focused phone tests passed: `4 passed, 21 deselected`.
+The full unit suite passed: `379 passed, 49 xfailed, 1 warning`.
 
 ## Eval iterations
 
-Answer all four sections. Quote source text directly; paraphrase does not satisfy these
-fields.
+### Run history
 
-**Run history**
+- First full run: `19/20 scored items` — PASS.
+- Targeted retry of `pkg-14`: `1/1 scored items`.
+- Confirming full run: `19/20 scored items` — PASS.
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+The final `eval-run.txt` records `agreement: 19/20 scored items (bar:
+18/20: PASS)` and all category floors passed.
 
-**Package analysis**
+### Package analysis
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+`pkg-14`: my rubric decided `reject`, while the gold label was `accept`.
+The package was a clear accept whose implementation named the affected
+area and whose uncertainty was explicitly bounded, but the first rubric
+run treated its investigation-level edit-site uncertainty too strictly.
+I revised the executable-implementation and honest-uncertainty pass
+conditions to accept a bounded investigation that pins the exact edit
+site and to require labeled uncertainty with a concrete validation
+method. The targeted retry accepted `pkg-14`; the confirming full run
+remained at 19/20 because the grader was not fully stable on that item.
 
-**Check rationale**
+### Check rationale
 
-[Quote one check from the `rubric.md` you uploaded to `tools/plan-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+> A stranger can begin the work without asking the author what to change
+> next: the approach identifies the relevant code or artifacts, describes
+> the change or the bounded investigation needed to pin the exact edit
+> site in actionable order, and names important dependencies or
+> decisions.
 
-**Trade-offs**
+I revised this condition after `pkg-14`: a plan can be executable while
+still reserving a bounded investigation to confirm the exact symbol or
+edit site. This keeps the check from requiring false precision while
+still requiring actionable files, order, and dependencies.
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
+### Trade-offs
 
----
-
-Related paths: `plan.md` and `eval-run.txt` in this directory; your skill's files in
-`tools/plan-check/`.
+The rubric accepts a clearly bounded investigation when the exact edit
+site is not yet certain, which improved the clear-accept behavior for
+`pkg-14`. It still requires the investigation to be labeled and paired
+with a concrete validation method, so an unsupported guess does not pass.
+The final full run preserved all category matches and the 19/20
+agreement score.
